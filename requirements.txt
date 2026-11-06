@@ -1,0 +1,14 @@
+# Pinned to the versions tested in .venv (Python 3.12).
+# langchain-community stays on 0.3.x: ragas 0.4.3 (used by eval/) fails to import with 0.4.x.
+langchain==1.4.7
+langchain-core==1.7.0
+langchain-community==0.3.31
+langchain-text-splitters==1.1.3
+langchain-google-genai==4.4.2
+faiss-cpu==1.15.1
+rank-bm25==0.2.2
+youtube-transcript-api==1.2.4
+streamlit==1.66.1
+python-dotenv==1.2.4
+requests==2.34.2
+pytest==9.1.1

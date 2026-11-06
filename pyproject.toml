@@ -1,0 +1,9 @@
+[project]
+name = "rag-youtube-qa-system"
+version = "0.1.0"
+description = "Grounded question answering over YouTube transcripts with LangChain, FAISS and Gemini"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
