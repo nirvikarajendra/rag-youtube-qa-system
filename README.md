@@ -1,0 +1,147 @@
+# RAG-Based YouTube Q&A System
+
+Ask questions about any YouTube video and get answers grounded in its transcript, with
+clickable timestamps that jump to the exact moment in the video.
+
+Built with **LangChain**, **FAISS** and **Google Gemini**, with a **Streamlit** chat UI and a CLI.
+
+## Features
+
+- **Any video URL**, and chat with several videos at once
+- **Timestamped sources**: every answer cites `[1] [2]` and links to `youtu.be/<id>?t=<seconds>`
+- **Hybrid search**: BM25 keyword search + FAISS vector search, merged with reciprocal rank fusion
+- **Follow-up questions**: chat history is used to rewrite "how does it work?" into a standalone question
+- **Whole-video summaries**: "summarize the video" is routed to map-reduce over the full transcript
+- **Embed once**: transcripts and FAISS indexes are cached on disk, so a video is never re-embedded
+- **Grounded answers**: the model answers only from the retrieved excerpts, or says it doesn't know
+
+## How it works
+
+```
+INGEST (once per video)
+  YouTube URL
+    → fetch transcript (youtube-transcript-api)   → cached in data/transcripts/
+    → split into 60-second chunks, each keeps its start/end time
+    → embed chunks with Gemini                    → FAISS index saved in data/indexes/
+
+QUESTION (every time)
+  question + chat history
+    → rewrite follow-ups into a standalone question
+    → router
+        ├─ normal question: hybrid search (BM25 + FAISS) → top 4 chunks
+        │                   → Gemini answers with [n] citations
+        └─ summary question: summarize all chunks in batches (map) → combine (reduce)
+    → answer streamed to the UI, with timestamp sources
+```
+
+## What it improves over a basic RAG
+
+| Basic RAG | This project |
+|---|---|
+| One hardcoded video | Any video URL; several videos at once |
+| Transcript joined into one string, timestamps lost | Every chunk keeps `start`/`end`; answers link to the moment in the video |
+| Index rebuilt on every run | One FAISS index per video and chunking setup, saved to disk |
+| Vector similarity only, k=2 | Similarity, MMR, or hybrid BM25 + FAISS, with optional LLM reranking |
+| "Summarize the video" sees only 2 chunks | Summary questions use map-reduce over the whole transcript |
+| No memory | Chat history; follow-ups are rewritten before searching |
+| Generic errors | Clear messages for disabled captions, unavailable videos and IP blocks |
+
+## Tech stack
+
+| Part | Tool |
+|---|---|
+| Transcripts | `youtube-transcript-api` |
+| Chunking | custom time-window chunker (character chunker as a baseline) |
+| Embeddings | Gemini `gemini-embedding-001` |
+| Vector store | FAISS (saved locally) |
+| Keyword search | BM25 (`rank-bm25`) |
+| LLM | Gemini `gemini-2.5-flash` (temperature 0) |
+| Orchestration | LangChain (LCEL chains) |
+| UI | Streamlit, plus a CLI |
+| Tests | pytest with fake LLM and embeddings (offline) |
+
+## Project layout
+
+```
+ytrag/
+  config.py        settings from .env and pipeline options (chunking, retrieval, k)
+  youtube.py       video id parsing, transcript fetching and caching
+  chunking.py      time-window chunker and character chunker
+  index.py         build, save and load the FAISS index for a video
+  retrieval.py     similarity, MMR and hybrid search, optional LLM rerank
+  prompts.py       all prompts
+  chains.py        question rewrite, router, answer chain, map-reduce helpers
+  pipeline.py      RAGPipeline: ingest(), prepare(), ask(), used by the CLI and the UI
+cli.py             command line: ingest, videos, ask, chat
+streamlit_app.py   chat UI with sources and an embedded video player
+tests/             offline tests (no API key needed)
+```
+
+## Setup
+
+Requires Python 3.11+ and a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+```bash
+git clone https://github.com/nirvikarajendra/rag-youtube-qa-system.git
+cd rag-youtube-qa-system
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env        # then open .env and set GOOGLE_API_KEY
+```
+
+## Usage
+
+### Streamlit chat UI
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Paste a YouTube link in the sidebar, click **Ingest**, then ask questions. Click a **▶ timestamp**
+under an answer to jump the player to that moment.
+
+### Command line
+
+```bash
+python cli.py ingest "https://www.youtube.com/watch?v=B5j3uNBH8X4"   # fetch, chunk, embed, save
+python cli.py videos                                                 # list ingested videos
+python cli.py ask B5j3uNBH8X4 "What is a producer?"                  # one question
+python cli.py ask B5j3uNBH8X4 "Summarize the video"                  # map-reduce summary
+python cli.py chat B5j3uNBH8X4                                       # multi-turn chat, streamed
+```
+
+Quote URLs that contain `?` (zsh treats it as a wildcard), or pass the bare video id.
+
+Options: `--retrieval similarity|mmr|hybrid`, `-k <number of chunks>`, `--rerank`, and
+`ingest --force` to rebuild an index.
+
+### Tests
+
+```bash
+pytest
+```
+
+The tests use a fake LLM, fake embeddings and a synthetic transcript, so they run offline.
+
+## Configuration
+
+All settings are optional except the API key. See `.env.example`:
+
+| Variable | Default |
+|---|---|
+| `GOOGLE_API_KEY` | required |
+| `YTRAG_CHAT_MODEL` | `gemini-2.5-flash` |
+| `YTRAG_EMBEDDING_MODEL` | `models/gemini-embedding-001` |
+| `YTRAG_LANGUAGES` | `en,en-US,en-GB` |
+| `YTRAG_MAX_VIDEO_MINUTES` | `180` |
+| `YTRAG_HISTORY_TURNS` | `6` (chat messages used to rewrite follow-ups) |
+| `YTRAG_DATA_DIR` | `./data` |
+
+## Known limitations
+
+- YouTube often blocks transcript requests from cloud servers. Ingest videos locally; the cached
+  transcripts and indexes in `data/` can then be shipped with a deployment.
+- Videos without captions are not supported yet (a Whisper speech-to-text fallback is the natural next step).
+- The FAISS index is stored as local files, which suits a single-user app. A multi-user deployment
+  would use a managed vector database and persistent storage.
