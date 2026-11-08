@@ -7,12 +7,9 @@ Built with **LangChain**, **FAISS** and **Google Gemini**, with a **Streamlit** 
 
 ![Summary of the Kafka video with timestamps, next to the embedded player](docs/images/summary.png)
 
-<details>
-<summary>Sources under an answer: click ▶ to jump the player to that moment</summary>
+Each answer lists its sources; click **▶** to jump the player to that moment:
 
 ![Four timestamped sources with ▶ buttons and transcript excerpts](docs/images/sources.png)
-
-</details>
 
 ## Features
 
