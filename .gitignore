@@ -4,6 +4,12 @@ __pycache__/
 .pytest_cache/
 .env
 .DS_Store
-data/
+
+# Baseline-only index (eval rebuilds it); the app uses the time-60s indexes.
+data/indexes/*/*/char-*/
+
+# Raw eval outputs and the auto-generated table; results live in eval/results/final_results.md.
 eval/results/runs/
+eval/results/summary.md
+eval/results/scores_*.csv
 eval/dataset_draft.jsonl
