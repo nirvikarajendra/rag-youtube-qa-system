@@ -1,0 +1,68 @@
+# Each experiment changes one thing from the one before it, so the results table shows
+# what each improvement is worth. Keys override ytrag.config.RAGConfig.
+
+experiments:
+  baseline:
+    description: "Basic RAG: 500-char chunks, k=2, vector similarity only"
+    chunker: char
+    chunk_size: 500
+    chunk_overlap: 20
+    retrieval: similarity
+    k: 2
+    rerank: false
+    router: false
+
+  k4:
+    description: "Baseline with k=4"
+    chunker: char
+    chunk_size: 500
+    chunk_overlap: 20
+    retrieval: similarity
+    k: 4
+    rerank: false
+    router: false
+
+  time_chunks:
+    description: "60-second timestamp windows instead of character chunks"
+    chunker: time
+    window_seconds: 60
+    chunk_size: 1000
+    overlap_segments: 1
+    retrieval: similarity
+    k: 4
+    rerank: false
+    router: false
+
+  hybrid:
+    description: "+ hybrid BM25 + FAISS with reciprocal rank fusion"
+    chunker: time
+    window_seconds: 60
+    chunk_size: 1000
+    overlap_segments: 1
+    retrieval: hybrid
+    k: 4
+    rerank: false
+    router: false
+
+  hybrid_rerank:
+    description: "+ LLM reranking of 20 candidates down to 4"
+    chunker: time
+    window_seconds: 60
+    chunk_size: 1000
+    overlap_segments: 1
+    retrieval: hybrid
+    k: 4
+    fetch_k: 20
+    rerank: true
+    router: false
+
+  full:
+    description: "+ summary router (map-reduce for whole-video questions) = app default"
+    chunker: time
+    window_seconds: 60
+    chunk_size: 1000
+    overlap_segments: 1
+    retrieval: hybrid
+    k: 4
+    rerank: false
+    router: true

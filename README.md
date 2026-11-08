@@ -55,7 +55,7 @@ QUESTION (every time)
 | Embeddings | Gemini `gemini-embedding-001` |
 | Vector store | FAISS (saved locally) |
 | Keyword search | BM25 (`rank-bm25`) |
-| LLM | Gemini `gemini-2.5-flash` (temperature 0) |
+| LLM | Gemini `gemini-3.5-flash-lite` (free tier: 1,000 requests/day) |
 | Orchestration | LangChain (LCEL chains) |
 | UI | Streamlit, plus a CLI |
 | Tests | pytest with fake LLM and embeddings (offline) |
@@ -75,6 +75,7 @@ ytrag/
 cli.py             command line: ingest, videos, ask, chat
 streamlit_app.py   chat UI with sources and an embedded video player
 tests/             offline tests (no API key needed)
+eval/              RAGAS evaluation: datasets, experiment configs, results
 ```
 
 ## Setup
@@ -125,6 +126,55 @@ pytest
 
 The tests use a fake LLM, fake embeddings and a synthetic transcript, so they run offline.
 
+## Evaluation (RAGAS)
+
+Evaluated with [RAGAS](https://docs.ragas.io) on **31 hand-written questions across two videos**,
+each reference answer checked against the transcript. Question types: `fact`, `multi_chunk`,
+`summary` and `unanswerable`. Generator and judge: `gemini-3.5-flash-lite`.
+
+| Metric | What it checks | Kafka (24 min) | AI explainer (9 min) | Combined |
+|---|---|---|---|---|
+| Faithfulness | every claim is supported by the retrieved chunks | 1.000 | 0.949 | **0.984** |
+| Answer relevancy | the answer addresses the question | 0.835 | 0.841 | **0.837** |
+| Context precision* | useful chunks are ranked first | 0.912 | 0.792 | **0.874** |
+| Context recall | retrieval found everything the reference needs | 0.877 | 1.000 | **0.917** |
+| "I don't know" on unanswerable questions | | 2 / 2 | 1 / 1 | **3 / 3** |
+
+\* On normal questions only; precision is not meaningful for map-reduce summaries.
+
+**Against a basic RAG baseline** (500-char chunks, top-2 vector search; 17 Kafka questions, same judge):
+
+| Metric | Baseline | This project |
+|---|---|---|
+| Context recall | 0.745 | **0.863** |
+| Context precision | 0.765 | **0.912** |
+| Faithfulness | 0.951 | **1.000** |
+| Answer relevancy | 0.851 | 0.839 |
+| Latency | 1.7 s | 1.8 s |
+
+Full tables, per-question notes and caveats are in
+[`eval/results/final_results.md`](eval/results/final_results.md); per-question scores are in
+`eval/results/final_scores.csv`.
+
+### Running the eval
+
+```bash
+python -m eval.run_eval --configs full --types fact multi_chunk      # Kafka questions
+python -m eval.run_eval --configs baseline --types fact multi_chunk  # baseline comparison
+python -m eval.run_eval --dataset eval/dataset_ai_video.jsonl --configs full
+python -m eval.run_eval --score-only eval/results/runs/<file>.jsonl  # re-score saved answers
+```
+
+`eval/configs.yaml` also has step-by-step configs (`k4`, `time_chunks`, `hybrid`, `hybrid_rerank`)
+that change one thing at a time. `python -m eval.generate_testset <url>` drafts more questions with
+RAGAS; review every one before adding it to a dataset.
+
+Notes:
+- The free Gemini tier is rate limited (`gemini-3.5-flash-lite`: 15 requests/min). Run summary
+  questions separately with `--types summary` and keep the default `--workers 2`.
+- Gemini judges Gemini's answers, which can inflate scores; compare configs rather than reading
+  the numbers as absolute quality.
+
 ## Configuration
 
 All settings are optional except the API key. See `.env.example`:
@@ -132,7 +182,8 @@ All settings are optional except the API key. See `.env.example`:
 | Variable | Default |
 |---|---|
 | `GOOGLE_API_KEY` | required |
-| `YTRAG_CHAT_MODEL` | `gemini-2.5-flash` |
+| `YTRAG_CHAT_MODEL` | `gemini-3.5-flash-lite` |
+| `YTRAG_JUDGE_MODEL` | `gemini-3.5-flash-lite` (RAGAS judge, eval only) |
 | `YTRAG_EMBEDDING_MODEL` | `models/gemini-embedding-001` |
 | `YTRAG_LANGUAGES` | `en,en-US,en-GB` |
 | `YTRAG_MAX_VIDEO_MINUTES` | `180` |
