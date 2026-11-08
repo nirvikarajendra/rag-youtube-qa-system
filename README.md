@@ -198,7 +198,7 @@ All settings are optional except the API key. See `.env.example`:
 
 ## Demo data
 
-`data/` is committed so the app works right after cloning or deploying, without re-embedding:
+`data/` is committed so the app works right after cloning, without re-embedding:
 
 | Video | Length |
 |---|---|
@@ -213,27 +213,10 @@ data/
                                                   /chunks.json   chunks for BM25 and summaries
 ```
 
-## Deploy to Streamlit Community Cloud
-
-YouTube blocks transcript requests from most cloud servers, so videos are ingested locally and
-the resulting `data/` folder is deployed with the code.
-
-1. Ingest videos on your machine: `python cli.py ingest "<url>"`
-2. Commit and push the updated `data/` folder.
-3. On [share.streamlit.io](https://share.streamlit.io), create an app from this repo with main file
-   `streamlit_app.py` and Python 3.12.
-4. Under **Advanced settings → Secrets**, add your key (never commit `.env`):
-   ```toml
-   GOOGLE_API_KEY = "your-key"
-   ```
-
-The deployed app can chat with every video in `data/`. To add a video, repeat steps 1–2; the app
-redeploys automatically. Videos ingested from the cloud app itself are lost when it restarts.
-
 ## Known limitations
 
-- YouTube often blocks transcript requests from cloud servers, so new videos must be ingested
-  locally (see above). A rotating proxy would allow ingesting from the cloud.
+- YouTube often blocks transcript requests from cloud servers. A cloud deployment would ingest
+  videos locally and ship the `data/` folder with the code, or use a rotating proxy.
 - Videos without captions are not supported yet (a Whisper speech-to-text fallback is the natural next step).
 - The FAISS index is stored as local files, which suits a single-user app. A multi-user deployment
   would use a managed vector database and persistent storage.
