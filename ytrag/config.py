@@ -24,8 +24,8 @@ def _env(name: str, default: str) -> str:
 
 @dataclass(frozen=True)
 class Settings:
-    chat_model: str = field(default_factory=lambda: _env("YTRAG_CHAT_MODEL", "gemini-2.5-flash"))
-    judge_model: str = field(default_factory=lambda: _env("YTRAG_JUDGE_MODEL", "gemini-2.5-flash"))
+    chat_model: str = field(default_factory=lambda: _env("YTRAG_CHAT_MODEL", "gemini-3.5-flash-lite"))
+    judge_model: str = field(default_factory=lambda: _env("YTRAG_JUDGE_MODEL", "gemini-3.5-flash-lite"))
     embedding_model: str = field(
         default_factory=lambda: _env("YTRAG_EMBEDDING_MODEL", "models/gemini-embedding-001")
     )
