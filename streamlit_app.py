@@ -12,6 +12,8 @@ from ytrag.youtube import TranscriptError
 
 st.set_page_config(page_title="YouTube Q&A", page_icon="🎬", layout="wide")
 
+SUMMARY_NOTE = "Summary question detected: summarizing the whole video (map-reduce)."
+
 
 @st.cache_resource(show_spinner=False)
 def get_pipeline(retrieval: str, k: int, rerank: bool, router: bool) -> RAGPipeline:
@@ -42,7 +44,7 @@ with st.sidebar:
 
     with st.form("ingest", clear_on_submit=True):
         url = st.text_input("Add a video", placeholder="https://www.youtube.com/watch?v=...")
-        if st.form_submit_button("Ingest", use_container_width=True) and url:
+        if st.form_submit_button("Ingest", width="stretch") and url:
             with st.spinner("Fetching transcript and building index..."):
                 try:
                     info = pipeline.ingest(url)
@@ -56,7 +58,7 @@ with st.sidebar:
         "Chat with", options=list(labels), default=list(labels)[:1], format_func=labels.get
     )
 
-    if st.button("Clear chat", use_container_width=True):
+    if st.button("Clear chat", width="stretch"):
         state.messages, state.player = [], None
         st.rerun()
 
@@ -87,6 +89,8 @@ with player_col:
 with chat_col:
     for i, msg in enumerate(state.messages):
         with st.chat_message(msg["role"]):
+            if msg.get("route") == "summary":
+                st.caption(SUMMARY_NOTE)
             st.markdown(msg["content"])
             if msg.get("sources"):
                 render_sources(msg["sources"], key_prefix=f"m{i}")
@@ -97,11 +101,15 @@ with chat_col:
         history = [{"role": m["role"], "content": m["content"]} for m in state.messages]
 
         with st.chat_message("assistant"):
-            with st.spinner("Searching the transcript..."):
-                prepared = pipeline.prepare(question, selected, history)
-            if prepared.route == "summary":
-                st.caption("Summary question detected: summarizing the whole video (map-reduce).")
-            answer = st.write_stream(prepared.stream())
+            try:
+                with st.spinner("Searching the transcript..."):
+                    prepared = pipeline.prepare(question, selected, history)
+                if prepared.route == "summary":
+                    st.caption(SUMMARY_NOTE)
+                answer = st.write_stream(prepared.stream())
+            except Exception as exc:  # e.g. Gemini rate limit (429) or a network error
+                st.error(f"Something went wrong: {type(exc).__name__}. Wait a moment and try again.")
+                st.stop()
             sources = [s.__dict__ for s in prepared.sources]
             render_sources(sources, key_prefix=f"m{len(state.messages) + 1}")
 

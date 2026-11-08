@@ -18,8 +18,7 @@ from ytrag.youtube import TranscriptError, extract_video_id
 
 def print_answer(result) -> None:
     print(f"\n{result.answer}\n")
-    if result.question:
-        print(f"(route: {result.route} | searched: {result.question})")
+    print(f"(route: {result.route} | searched: {result.question})")
     for s in result.sources:
         print(f"  [{s.n}] {s.title} @ {s.timestamp}  {s.url}")
     print()
