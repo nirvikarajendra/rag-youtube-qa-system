@@ -5,6 +5,15 @@ clickable timestamps that jump to the exact moment in the video.
 
 Built with **LangChain**, **FAISS** and **Google Gemini**, with a **Streamlit** chat UI and a CLI.
 
+![Summary of the Kafka video with timestamps, next to the embedded player](docs/images/summary.png)
+
+<details>
+<summary>Sources under an answer: click ▶ to jump the player to that moment</summary>
+
+![Four timestamped sources with ▶ buttons and transcript excerpts](docs/images/sources.png)
+
+</details>
+
 ## Features
 
 - **Any video URL**, and chat with several videos at once
